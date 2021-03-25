@@ -1,0 +1,17 @@
+
+config qos_ctl "control"
+	option qos_en1 '0'
+	option qos_en2 '0'
+	option qos_en3 '0'
+	option qos_en4 '0'
+	option qos_en5 '0'
+	option qos_en_m '0'
+
+config apn "apn"
+	option apn_type 
+	option apn_id 
+	option apn_name 
+	option apn_account 
+	option apn_password 
+	option apn_auth 
+	option apn_result

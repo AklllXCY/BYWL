@@ -1,0 +1,45 @@
+<%#
+ Copyright 2008 Steven Barth <steven@midlink.org>
+ Copyright 2008 Jo-Philipp Wich <jow@openwrt.org>
+ Copyright 2012 David Menting <david@nut-bolt.nl>
+ Licensed to the public under the Apache License 2.0.
+-%>
+
+<%
+	local ver = require "luci.version"
+	local disp = require "luci.dispatcher"
+	local request  = disp.context.path
+	local category = request[1]
+	local tree = disp.node()
+	local categories = disp.node_childs(tree)
+%>
+   </div>
+   </div>
+   <footer>
+    <p>合肥本源物联网科技有限公司</p>
+    <% if #categories > 1 then %>
+     <ul class="breadcrumb pull-right" id="modemenu">
+	    <% for i, r in ipairs(categories) do %>
+		    <li<% if request[1] == r then %> class="active"<%end%>><a href="<%=controller%>/<%=r%>/"><%=striptags(translate(tree.nodes[r].title))%></a> <span class="divider">|</span></li>
+	    <% end %>
+     </ul>
+    <% end %>
+   </footer>
+   
+  </div>
+<script type="text/javascript">
+	$(document).ready(function(){
+		$(".logout span").click(function(){
+			window.location.href = '<%=luci.dispatcher.build_url("admin","logout")%>'
+		})
+		$(".nav .dropdown .nav_item").on("click",function(){
+			$(this).toggleClass("add_show")
+			$(this).siblings(".nav .dropdown .nav_item").removeClass("add_show")
+			$(this).next(".dropdown-menu").slideToggle(300)
+			
+			
+		})
+	})
+</script>
+ </body>
+</html>
