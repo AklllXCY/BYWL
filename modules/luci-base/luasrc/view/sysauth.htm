@@ -1,160 +1,48 @@
-<%
-	local sys  = require "luci.sys"
-	local util = require "luci.util"
-	local http = require "luci.http"
-	local disp = require "luci.dispatcher"
-
-	
-	
-	local boardinfo = util.ubus("system", "board")
-
-	local request  = disp.context.path
-	local request2 = disp.context.request
-
-	local category = request[1]
-	local cattree  = category and disp.node(category)
-
-	local leaf = request2[#request2]
-
-	local tree = disp.node()
-	local node = disp.context.dispatched
-
-	local categories = disp.node_childs(tree)
-	
-	 
-	
-	local c = tree
-	local i, r
-
-	-- tag all nodes leading to this page
-	for i, r in ipairs(request) do
-		if c.nodes and c.nodes[r] then
-			c = c.nodes[r]
-			c._menu_selected = true
-		end
-	end
-    
-    -- send as HTML5
-	http.prepare_content("text/html")
-
-	local function nodeurl(prefix, name, query)
-		local url = controller .. prefix .. name .. "/"
-		if query then
-			url = url .. http.build_querystring(query)
-		end
-		return pcdata(url)
-	end
-
-	local function subtree(prefix, node, level)
-		if not level then
-			level = 1
-		end
-
-		local childs = disp.node_childs(node)
-		if #childs > 0 then
-        
-            if level > 2 then
-%>
-	<ul class="tabs">
-		<%  
-            end
-
-			local selected_node
-			local selected_name
-			local i, v
-
-			for i, v in ipairs(childs) do
-				local nnode = node.nodes[v]
-				if nnode._menu_selected then
-					selected_node = nnode
-					selected_name = v
-				end
-                if level > 2 then
-		%>
-			<li class="tabmenu-item-<%=v%><%- if nnode._menu_selected or (node.leaf and v == leaf) then %> active<% end %>">
-			    <a href="<%=nodeurl(prefix, v, nnode.query)%>"><%=striptags(translate(nnode.title))%></a>
-			</li>
-		<%      end
-			end
-            
-            if level > 2 then
-		%>
-	</ul>
-<%          end
-
-			if selected_node then
-				subtree(prefix .. selected_name .. "/", selected_node, level + 1)
-			end
-		end
-	end
+<%#
+ Copyright 2008 Steven Barth <steven@midlink.org>
+ Copyright 2008-2012 Jo-Philipp Wich <jow@openwrt.org>
+ Licensed to the public under the Apache License 2.0.
 -%>
-<!DOCTYPE html>
-<html lang="<%=luci.i18n.context.lang%>">
- <head>
-  <meta charset="utf-8">
-  <title>ORI-IOT BC5412</title>
-  <!--[if lt IE 9]><script src="<%=media%>/html5.js"></script><![endif]-->
-  <meta name="viewport" content="initial-scale=1.0">
-  <link rel="stylesheet" href="<%=media%>/cascade.css">
-  <link rel="stylesheet" media="only screen and (max-device-width: 854px)" href="<%=media%>/mobile.css" type="text/css" />
-  <link rel="shortcut icon" href="<%=media%>/favicon.ico">
-  <% if node and node.css then %><link rel="stylesheet" href="<%=resource%>/<%=node.css%>">
-  <% end -%>
-  <% if css then %><style title="text/css">
-  <%-= css %>
-  </style>
-  <% end -%>
-  <script src="<%=resource%>/xhr.js"></script>
- </head>
- <body class="lang_<%=luci.i18n.context.lang%> <%- if node then %><%= striptags( node.title ) %><%- end %>">
-  <div class="topcontainer">
-  	<div class="logobar">
-  		<div class="logo">
-			<img src="<%=media%>/bylogo.png" alt="缺少logo图" >
-  		</div>
-  	</div>
-  </div>
-<%- if luci.sys.process.info("uid") == 0 and luci.sys.user.getuser("root") and not luci.sys.user.getpasswd("root") then -%>
-<div class="container">
-	<div class="alert-message warning">
-		<h4><%:No password set!%></h4>
-		<%:There is no password set on this router. Please configure a root password to protect the web interface and enable SSH.%><br>
-        <a href="<%=pcdata(luci.dispatcher.build_url("admin/system/admin"))%>"><%:Go to password configuration...%></a>
-	</div>
-</div>
-<%- end -%>
-<div id="maincontent" class="logincontainer">
-	<div class="loginbox">
-<% if category then subtree("/" .. category .. "/", cattree) end %>
+
+<%+header%>
+
 <form method="post" action="<%=pcdata(luci.http.getenv("REQUEST_URI"))%>">
-	<div class="login_form">
-		<h2>
-			<%="请输入密码"%>
-		</h2>
-		<div class="login_dialog">
+	<div class="cbi-map">
+		<h2><a id="content" name="content"><%:Authorization Required%></a></h2>
+		<div class="cbi-map-descr">
+			<%:Please enter your username and password.%>
 			<%- if fuser then %>
-				<div class="dialog_error">
-					<%="密码错误!请输入正确密码"%>
-				</div>
+			<div class="error"><%:Invalid username and/or password! Please try again.%></div>
+			<br />
 			<% end -%>
 		</div>
-		<div class="form-item">
-			<div class="password-input">
-					<input type="hidden" name="luci_username" value="<%=duser%>" />
-					<input type="text" disabled class="form_user_input" name="luci_username" value="<%=duser%>" />
-					<input type="password" class="form_pwd_input" placeholder="<%:Password%>" name="luci_password" />
+		<fieldset class="cbi-section"><fieldset class="cbi-section-node">
+			<div class="cbi-value">
+				<label class="cbi-value-title"><%:Username%></label>
+				<div class="cbi-value-field">
+					<input class="cbi-input-user" type="text" name="luci_username" value="<%=duser%>" />
+				</div>
 			</div>
-		</div>
+			<div class="cbi-value cbi-value-last">
+				<label class="cbi-value-title"><%:Password%></label>
+				<div class="cbi-value-field">
+					<input class="cbi-input-password" type="password" name="luci_password" />
+				</div>
+			</div>
+		</fieldset></fieldset>
 	</div>
-	<div class="login_btn_box">
-	<input type="submit" value="<%:Login%>" class="login_btn" />
+
+	<div>
+		<input type="submit" value="<%:Login%>" class="cbi-button cbi-button-apply" />
+		<input type="reset" value="<%:Reset%>" class="cbi-button cbi-button-reset" />
 	</div>
 </form>
 <script type="text/javascript">//<![CDATA[
 	var input = document.getElementsByName('luci_password')[0];
 	if (input)
-	input.focus();
+		input.focus();
 //]]></script>
+
 <%
 local uci  = require "luci.model.uci".cursor()
 local fs  = require "nixio.fs"
@@ -163,22 +51,23 @@ local https_port = uci:get("uhttpd", "main", "listen_https")
 if type(https_port) == "table" then
 	https_port = https_port[1]
 end
+
 if https_port and fs.access(https_key) then
 	https_port = https_port:match("(%d+)$")
 %>
+
+<script type="text/javascript">//<![CDATA[
+	if (document.location.protocol != 'https:') {
+		var url = 'https://' + window.location.hostname + ':' + '<%=https_port%>' + window.location.pathname;
+		var img=new Image;
+		img.onload=function(){window.location = url};
+		img.src='https://' + window.location.hostname + ':' + '<%=https_port%>' + '<%=resource%>/cbi/up.gif?' + Math.random();;
+		setTimeout(function(){
+			img.src=''
+		}, 5000);
+	}
+//]]></script>
+
 <% end %>
-<%
-	local ver = require "luci.version"
-	local disp = require "luci.dispatcher"
-	local request  = disp.context.path
-	local category = request[1]
-	local tree = disp.node()
-	local categories = disp.node_childs(tree)
-%>
-   </div>
-   </div>
-   <footer>
-    <p>合肥本源物联网科技有限公司</p>
-   </footer>
- </body>
-</html>
+
+<%+footer%>
