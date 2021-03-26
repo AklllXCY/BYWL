@@ -1,16 +1,17 @@
+
 <%#
  Copyright 2008 Steven Barth <steven@midlink.org>
  Copyright 2008 Jo-Philipp Wich <jow@openwrt.org>
  Copyright 2012 David Menting <david@nut-bolt.nl>
  Licensed to the public under the Apache License 2.0.
 -%>
-
 <%
 	local sys  = require "luci.sys"
 	local util = require "luci.util"
 	local http = require "luci.http"
 	local disp = require "luci.dispatcher"
-
+	local message = require "luci.message"
+	
 	local boardinfo = util.ubus("system", "board")
 
 	local request  = disp.context.path
@@ -25,7 +26,9 @@
 	local node = disp.context.dispatched
 
 	local categories = disp.node_childs(tree)
-
+	
+	 
+	
 	local c = tree
 	local i, r
 
@@ -95,12 +98,13 @@
 <html lang="<%=luci.i18n.context.lang%>">
  <head>
   <meta charset="utf-8">
-  <title><%=striptags( (boardinfo.hostname or "?") .. ( (node and node.title) and ' - ' .. translate(node.title) or '')) %> - LuCI</title>
+  <title>ORI-IOT BC5412</title>
   <!--[if lt IE 9]><script src="<%=media%>/html5.js"></script><![endif]-->
   <meta name="viewport" content="initial-scale=1.0">
   <link rel="stylesheet" href="<%=media%>/cascade.css">
   <link rel="stylesheet" media="only screen and (max-device-width: 854px)" href="<%=media%>/mobile.css" type="text/css" />
   <link rel="shortcut icon" href="<%=media%>/favicon.ico">
+  <script src="<%=media%>/jquery-3.5.1.min.js"></script>
   <% if node and node.css then %><link rel="stylesheet" href="<%=resource%>/<%=node.css%>">
   <% end -%>
   <% if css then %><style title="text/css">
@@ -111,10 +115,30 @@
  </head>
 
  <body class="lang_<%=luci.i18n.context.lang%> <%- if node then %><%= striptags( node.title ) %><%- end %>">
+  <div class="topcontainer">
+  	<div class="logobar">
+  		<div class="logo">
+			<img src="<%=media%>/bylogo.png" alt="缺少logo图">
+  		</div>
+		<div class="info">
+				<div class="infobar">
+					<input type="hidden" id="operator" value="<%=message.user%>">
+					<input type="hidden" id="nettype" value="<%=message.type%>">
+					<input type="hidden" id="signal" value="<%=message.csq%>">
+					<input type="hidden" id="simcheck" value="<%=message.cpin%>">
+					<span class="nettype logo-info-item" title=""></span>
+					<span class="signal logo-info-item" title=""></span>
+					<span class="simstatus logo-info-item" title=""></span>
+				</div>
+				<div class="logout"><a href="<%=luci.dispatcher.build_url("admin","logout")%>">退出登录</a></div>
+		</div>
+  	</div>
+  </div>
   <header>
    <div class="fill">
+	   <a class="brand" href="#">BC5412</a>
     <div class="container">
-     <a class="brand" href="#"><%=boardinfo.hostname or "?"%></a>
+		
      <ul class="nav">
 	 <%-
 		local function submenu(prefix, node)
@@ -149,7 +173,7 @@
                 if #grandchildren > 0 then
 	%>
         <li class="dropdown">
-            <a class="menu" href="#"><%=pcdata(striptags(translate(nnode.title)))%></a>
+            <div class="nav_item"><i></i><a class="menu menu-num<%=i%>" data-menu="<%=i%>" href="#"><%=pcdata(striptags(translate(nnode.title)))%></a></div>
             <%- submenu("/" .. category .. "/" .. r .. "/", nnode) %>
         </li>
 	<%          else %>
@@ -163,32 +187,103 @@
 	%>
 	</ul>
 
-	<%
-        -- calculate the number of unsaved changes
-		if tree.nodes[category] and tree.nodes[category].ucidata then
-			local ucichanges = 0
-
-			for i, j in pairs(require("luci.model.uci").cursor():changes()) do
-				for k, l in pairs(j) do
-					for m, n in pairs(l) do
-						ucichanges = ucichanges + 1;
-					end
-				end
-			end
-	%>
-	<div class="pull-right">
-	<% if ucichanges > 0 then %>
-	  <a class="label notice" href="<%=controller%>/<%=category%>/uci/changes"><%:Unsaved Changes%>: <%=ucichanges%></a>
-	<% end %>
-      <span id="xhr_poll_status" style="display:none" onclick="XHR.running() ? XHR.halt() : XHR.run()">
-       <span class="label success" id="xhr_poll_status_on"><%:Auto Refresh%> <%:on%></span>
-       <span class="label" id="xhr_poll_status_off" style="display:none"><%:Auto Refresh%> <%:off%></span>
-      </span>
-     </div>
-	<% end %>
+	
     </div>
    </div>
   </header>
+<script type="text/javascript">//<![CDATA[
+	$(document).ready(function(){
+			let operator = $('#operator').val() //CHINA MOBILE
+			let nettype =  parseInt($('#nettype').val()) //E-UTRAN
+			let signal_str = $("#signal").val().replace(/\s*/g,'') //-51dbm
+			let signal = signal_str.substring(signal_str.indexOf(":")+1,signal_str.indexOf(","))*2-113
+			let net_type = ["2G", "2G", "3G", "EDGE", "3G+", "3G+", "3G+", "LTE"]
+			let sim = $("#simcheck").val()
+			let sim_trim = sim.replace(/\s*/g,'')
+			console.log(sim_trim.substring(sim_trim.indexOf(":")+1,sim_trim.indexOf(":")+6))
+			if(sim_trim.substring(sim_trim.indexOf(":")+1,sim_trim.indexOf(":")+6) == "READY" ){
+					$('.simstatus').css("background","url('<%=resource%>/status/sim_detected.png') no-repeat 0px 0px")
+					$('.simstatus').attr('title',operator)
+					if(nettype){
+						$(".nettype").text(net_type[nettype])
+					}else{
+						$(".nettype").text("无服务")
+					}
+					if(signal && signal != 85 ){
+					if(signal > -113 && signal <= -105){
+						$('.signal').attr('title',signal + "dBm")
+						$('.signal').css("background","url('<%=resource%>/status/signal.png') no-repeat 0px -47px")
+					}else if(signal > -106 && signal < -100){
+						$('.signal').attr('title',signal + "dBm")
+						$('.signal').css("background","url('<%=resource%>/status/signal.png') no-repeat 0px -94px")
+					}else if(signal > -99 && signal <= -93){
+						$('.signal').attr('title',signal + "dBm")
+						$('.signal').css("background","url('<%=resource%>/status/signal.png') no-repeat 0px -142px")
+					}else if(signal > -92 && signal < -86){
+						$('.signal').attr('title',signal + "dBm")
+						$('.signal').css("background","url('<%=resource%>/status/signal.png') no-repeat 0px -187px")
+					}else if(signal >= -85 && signal <= -51){
+						$('.signal').attr('title',signal + "dBm")
+						$('.signal').css("background","url('<%=resource%>/status/signal.png') no-repeat 0px -229px")
+					}else{
+						$('.signal').attr('title',"无信号")
+						$('signal').css("background","url('<%=resource%>/status/signal.png') no-repeat 0px -271px")
+					}
+				}else{
+					$('.simstatus').css("background","url('<%=resource%>/status/sim_undetected.png') no-repeat 0px 0px")
+					$('.simstatus').attr('title',"当前sim卡不可用/无法上网")
+					$('.nettype').text("无服务")
+					$('.signal').attr('title',"无信号")
+					$('.signal').css("background","url('<%=resource%>/status/signal.png') no-repeat 0px -271px")
+				}}
+				setTimeout(function(){
+					XHR.poll(5,"<%=luci.dispatcher.build_url("admin","system","message")%>",null,function(x,info){
+						let new_signal = info.csq.replace(/\s*/g,'')
+						let _signal = new_signal.substring(new_signal.indexOf(":")+1,new_signal.indexOf(","))*2-113
+						let new_nettype = info.type
+						let new_operator = info.user
+						if(parseInt(new_nettype) === nettype && new_nettype != 'error'){
+							$(".nettype").text(net_type[new_nettype])
+						}else{
+							$(".nettype").text(net_type[new_nettype])
+						}
+						if(new_operator != 'error'){
+							$('.simstatus').css("background","url('<%=resource%>/status/sim_detected.png') no-repeat 0px 0px")
+                                                        $('.simstatus').attr('title',new_operator)
+						}else{
+                                                        $('.simstatus').css("background","url('<%=resource%>/status/sim_undetected.png') no-repeat 0px 0px")
+                                                        $('.simstatus').attr('title',new_operator)
+						}
+						if(_signal && _signal != 85){
+                                              
+                                        if(_signal > -113 && _signal <= -105){
+                                                $('.signal').attr('title',_signal + "dBm")
+                                                $('.signal').css("background","url('<%=resource%>/status/signal.png') no-repeat 0px -47px")
+                                        }else if(_signal > -106 && _signal < -100){
+                                                $('.signal').attr('title',_signal + "dBm")
+                                                $('.signal').css("background","url('<%=resource%>/status/signal.png') no-repeat 0px -94px")
+                                        }else if(_signal > -99 && _signal <= -93){
+                                                $('.signal').attr('title',_signal + "dBm")
+                                                $('.signal').css("background","url('<%=resource%>/status/signal.png') no-repeat 0px -142px")
+                                        }else if(_signal > -92 && _signal < -86){
+                                                $('.signal').attr('title',_signal + "dBm")
+                                                $('.signal').css("background","url('<%=resource%>/status/signal.png') no-repeat 0px -187px")
+                                        }else if(_signal >= -85 && _signal <= -51){
+                                                $('.signal').attr('title',_signal + "dBm")
+                                                $('.signal').css("background","url('<%=resource%>/status/signal.png') no-repeat 0px -229px")
+                                        }else{
+                                                $('signal').css("background","url('<%=resource%>/status/signal.png') no-repeat 0px -271px")
+                                        }
+                                }else{
+                                        $('.simstatus').attr('title',"当前无SIM卡/无法上网")
+                                        $('.nettype').text("无服务")
+                                        $('.signal').attr('title',"无信号")
+                                        $('.signal').css("background","url('<%=resource%>/status/signal.png') no-repeat 0px -271px")
+                                }
+})
+},5000)
+})
+//]]></script>
 
 <%- if luci.sys.process.info("uid") == 0 and luci.sys.user.getuser("root") and not luci.sys.user.getpasswd("root") then -%>
 <div class="container">
@@ -199,6 +294,6 @@
 	</div>
 </div>
 <%- end -%>
-
-<div id="maincontent" class="container">
+<div id="maincontent" class="maincontainer">
+	<div id="innerbox">	
 <% if category then subtree("/" .. category .. "/", cattree) end %>
